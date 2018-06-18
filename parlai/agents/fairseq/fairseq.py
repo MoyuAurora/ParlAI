@@ -31,11 +31,11 @@ import os
 # Key is FairSeq metric, value is ParlAI name
 METRIC_MAPPER = {
     # train loss
-    'train_loss': 'tloss',
+    "train_loss": "tloss",
     # updates per second
-    'ups': 'ups',
+    "ups": "ups",
     # words per second
-    'wps': 'wps',
+    "wps": "wps",
 }
 
 
@@ -50,19 +50,19 @@ def _fairseq_opt_wrapper(opt):
     args = argparse.Namespace()
 
     # set default options for the given opt
-    models.ARCH_CONFIG_REGISTRY[opt['arch']](args)
+    models.ARCH_CONFIG_REGISTRY[opt["arch"]](args)
 
     # post processing of args. See
     # https://github.com/pytorch/fairseq/blob/v0.5.0/fairseq/options.py#L95
-    if 'lr' in opt:
-        opt['lr'] = options.eval_str_list(opt['lr'], type=float)
-    if 'update_freq' in opt:
-        opt['update_freq'] = options.eval_str_list(opt['update_freq'], int)
-    if opt.get('max_sentences_valid') is not None:
-        opt['max_sentences_valid'] = opt['max_sentences']
+    if "lr" in opt:
+        opt["lr"] = options.eval_str_list(opt["lr"], type=float)
+    if "update_freq" in opt:
+        opt["update_freq"] = options.eval_str_list(opt["update_freq"], int)
+    if opt.get("max_sentences_valid") is not None:
+        opt["max_sentences_valid"] = opt["max_sentences"]
 
     # hardcode turn off distributed training. May need to revisit this later
-    opt['distributed_world_size'] = 1
+    opt["distributed_world_size"] = 1
 
     for key in opt:
         if opt[key] is None:
@@ -74,6 +74,7 @@ def _fairseq_opt_wrapper(opt):
 
 class _FairseqDictionary(DictionaryAgent):
     """Skeleton dictionary class needed for interaction with fairseq-py"""
+
     def pad(self):
         return self.pad_index
 
@@ -101,6 +102,7 @@ class _FairseqDictionary(DictionaryAgent):
 
 class _ParlaiTask(FairseqTask):
     """Skeleton task class needed for interaction with fairseq-py."""
+
     def __init__(self, dictionary):
         self.dict = dictionary
 
@@ -115,6 +117,7 @@ class _ParlaiTask(FairseqTask):
 
 class FairseqAgent(TorchAgent):
     """Generic wrapper around fairseq for use in ParlAI"""
+
     metrics = {}
 
     # TODO: merge with TorchAgent.add_cmdline_args
@@ -160,10 +163,10 @@ class FairseqAgent(TorchAgent):
         # We need to find out the fairseq model-specific options, so grab the
         # architecture stuff and look up its options
         known_args = argparser.parse_known_args(nohelp=True)[0]
-        if hasattr(known_args, 'arch'):
+        if hasattr(known_args, "arch"):
             arch = known_args.arch
             arch_group = argparser.add_argument_group(
-                '{} specific Arguments'.format(arch)
+                "{} specific Arguments".format(arch)
             )
             models.ARCH_MODEL_REGISTRY[arch].add_args(arch_group)
 
@@ -187,7 +190,7 @@ class FairseqAgent(TorchAgent):
             # copy over all the args we can
             self.args = _fairseq_opt_wrapper(opt)
             # Just some identifying info
-            self.id = 'fairseq:{}'.format(self.args.arch)
+            self.id = "fairseq:{}".format(self.args.arch)
             # construct dictionaries for parlai frontend and fairseq backend
             self.dict = _FairseqDictionary(opt)
 
@@ -276,11 +279,11 @@ class FairseqAgent(TorchAgent):
     def batch_act(self, observations):
         bsz = len(observations)
         # initialize a table of replies with this agent's id
-        batch_reply = [{'id': self.getID()} for _ in range(bsz)]
+        batch_reply = [{"id": self.getID()} for _ in range(bsz)]
 
         # torchagent boilerplate
         # TODO: is this really the right way to check is_training?
-        is_training = any(['labels' in obs for obs in observations])
+        is_training = any(["labels" in obs for obs in observations])
         vec_obs = [self.vectorize(obs) for obs in observations]
         xs, ys, labels, valid_inds = self.map_valid(vec_obs)
         if xs is None:
@@ -291,21 +294,21 @@ class FairseqAgent(TorchAgent):
             self._train(xs, ys)
         else:
             samples = self._make_sample(xs, ys)
-            src_tokens = samples['net_input']['src_tokens']
-            src_lengths = samples['net_input']['src_lengths']
+            src_tokens = samples["net_input"]["src_tokens"]
+            src_lengths = samples["net_input"]["src_lengths"]
             # TODO: make this into a separate function?
             gens = self.generator.generate(src_tokens, src_lengths, maxlen=64)
             for i in range(len(xs)):
                 beams = gens[i]
-                selected = max(beams, key=lambda x: x['score'])
+                selected = max(beams, key=lambda x: x["score"])
                 # TODO: we can get the attention here actually :)
                 response = []
-                for t in selected['tokens']:
+                for t in selected["tokens"]:
                     t = t.item()
                     if t == self.dict.eos:
                         break
                     response.append(self.dict[t])
-                batch_reply[i]['text'] = " ".join(response)
+                batch_reply[i]["text"] = " ".join(response)
 
         return batch_reply
 
@@ -316,7 +319,7 @@ class FairseqAgent(TorchAgent):
     # TODO: make sure we're only passing along some metrics
     # TODO: put in PPL
     def reset_metrics(self):
-        if not hasattr(self, 'trainer'):
+        if not hasattr(self, "trainer"):
             # We haven't initialized the trainer yet, so we don't have any metrics
             return
         for k in self.trainer.meters:
@@ -339,14 +342,11 @@ class FairseqAgent(TorchAgent):
         # add extra info to samples
         # TODO: should the right/left padding thing be in torch agent?
         repadded = convert_padding_direction(xs, self.dict.pad(), right_to_left=True)
-        sample = {
-            'target': ys,
-            'ntokens': sum(self._seq_length(ys)).item(),
-        }
-        sample['net_input'] = {
-            'src_tokens': repadded,
-            'src_lengths': self._seq_length(xs),
-            'prev_output_tokens': self._right_shifted_ys(ys),
+        sample = {"target": ys, "ntokens": sum(self._seq_length(ys)).item()}
+        sample["net_input"] = {
+            "src_tokens": repadded,
+            "src_lengths": self._seq_length(xs),
+            "prev_output_tokens": self._right_shifted_ys(ys),
         }
         return sample
 
