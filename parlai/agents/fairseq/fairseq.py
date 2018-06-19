@@ -336,13 +336,11 @@ class FairseqAgent(TorchAgent):
     def report(self):
         return {k: v.avg for k, v in self.trainer.meters.items()}
 
-    # TODO: document
-    # TODO: make sure we're only passing along some metrics
-    # TODO: put in PPL
     def reset_metrics(self):
         if not hasattr(self, "trainer"):
             # We haven't initialized the trainer yet, so we don't have any metrics
             return
+        # We need to reset everything
         for k in self.trainer.meters:
             self.trainer.meters[k].reset()
 
