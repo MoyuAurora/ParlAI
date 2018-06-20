@@ -345,7 +345,7 @@ class FairseqAgent(TorchAgent):
 
         # These are the metrics we'll pass up the way, and their new names
         train_metrics = {"train_loss", "ups", "wps", "gnorm", "clip"}
-        valid_metrics = {"valid_loss"}
+        valid_metrics = {"valid_loss", "wps"}
 
         metrics = train_metrics if self.is_training else valid_metrics
 
@@ -353,9 +353,9 @@ class FairseqAgent(TorchAgent):
 
         # additionally output perplexity
         if "train_loss" in output:
-            output["train_ppl"] = np.exp(output["train_loss"])
+            output["train_ppl"] = np.exp2(output["train_loss"])
         if "valid_loss" in output:
-            output["ppl"] = np.exp(output["valid_loss"])
+            output["ppl"] = np.exp2(output["valid_loss"])
 
         return output
 
@@ -369,12 +369,7 @@ class FairseqAgent(TorchAgent):
 
     def receive_metrics(self, metrics_dict):
         """Used to update lr scheduler."""
-        # receive metrics is supposed to be used in order to provide signals to the
-        # lr scheduler. We need to prepend everything with a "valid_" key that
-        # fairseq should be expecting
-        for k in list(metrics_dict.keys()):
-            metrics_dict["valid_" + k] = metrics_dict[k]
-        self.trainer.lr_step(metrics_dict)
+        self.trainer.lr_step(-1, metrics_dict["valid_loss"])
 
     # Helper functions
     def _seq_length(self, xs):
